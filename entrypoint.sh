@@ -72,26 +72,26 @@ for namespace in $NAMESPACES; do
             label_selector="-l OWNER!=TILLER"
         fi
 
-        kubectl --namespace="${namespace}" get "$type" $label_selector -o custom-columns=SPACE:.metadata.namespace,KIND:..kind,NAME:.metadata.name --no-headers | while read -r a b name; do
-            [ -z $name ] && continue
+        kubectl --namespace="${namespace}" get "$type" $label_selector -o custom-columns=NAME:.metadata.name --no-headers | while read name; do
+            [ -z "$name" ] && continue
 
-        # Service account tokens cannot be exported
-        if [[ "$type" == 'secret' && $(kubectl get -n "${namespace}" -o jsonpath="{.type}" secret "$name") == "kubernetes.io/service-account-token" ]]; then
-            continue
-        fi
+            # Service account tokens cannot be exported
+            if [[ "$type" == 'secret' && $(kubectl get -n "${namespace}" -o jsonpath="{.type}" secret "$name") == "kubernetes.io/service-account-token" ]]; then
+                continue
+            fi
 
-        kubectl --namespace="${namespace}" get --export -o=json "$type" "$name" | jq --sort-keys \
-        'del(
-            .metadata.annotations."control-plane.alpha.kubernetes.io/leader",
-            .metadata.annotations."kubectl.kubernetes.io/last-applied-configuration",
-            .metadata.creationTimestamp,
-            .metadata.generation,
-            .metadata.resourceVersion,
-            .metadata.selfLink,
-            .metadata.uid,
-            .spec.clusterIP,
-            .status
-        )' | python -c 'import sys, yaml, json; yaml.safe_dump(json.load(sys.stdin), sys.stdout, default_flow_style=False)' >"$GIT_REPO_PATH/$GIT_PREFIX_PATH/${namespace}/${name}.${type}.yaml"
+            kubectl --namespace="${namespace}" get --export -o=json "$type" "$name" | jq --sort-keys \
+            'del(
+                .metadata.annotations."control-plane.alpha.kubernetes.io/leader",
+                .metadata.annotations."kubectl.kubernetes.io/last-applied-configuration",
+                .metadata.creationTimestamp,
+                .metadata.generation,
+                .metadata.resourceVersion,
+                .metadata.selfLink,
+                .metadata.uid,
+                .spec.clusterIP,
+                .status
+            )' | python -c 'import sys, yaml, json; yaml.safe_dump(json.load(sys.stdin), sys.stdout, default_flow_style=False)' >"$GIT_REPO_PATH/$GIT_PREFIX_PATH/${namespace}/${name}.${type}.yaml"
         done
     done
 done
